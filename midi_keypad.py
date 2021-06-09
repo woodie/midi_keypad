@@ -3,11 +3,16 @@ import board
 import digitalio
 import os
 import string
+import time
+import adafruit_rgb_display.st7789 as st7789
 
 from evdev import InputDevice
 from select import select
 from PIL import Image, ImageDraw, ImageFont
-import adafruit_rgb_display.st7789 as st7789
+from rtmidi.midiutil import open_midioutput
+from rtmidi.midiconstants import NOTE_OFF, NOTE_ON, PROGRAM_CHANGE
+
+midiout, port_name = open_midioutput(1)
 
 text_file = open('/usr/share/midi/programs.txt', 'r')
 programs = text_file.read().split('\n')
@@ -69,19 +74,24 @@ def change_program(num):
   draw.text((0, 50), lines[0], font=sm, fill="#00FF00")
   draw.text((0, 90), lines[1], font=sm, fill="#00FF00")
   disp.image(image, 270)
-  fmt = "{0:x}".format(num)
-  os.system('amidi -p hw:1,0,0 -S "C0 %s"' % fmt)
+  midiout.send_message([PROGRAM_CHANGE, num])
 
-def show_progress(num):
+def build_patch(num):
   draw.rectangle((0, 0, disp.height, disp.width), outline=0, fill=0)
   draw.text((0, 8), 'Program:', font=sm, fill="#FFFFFF")
   draw.text((0, 50), str(num), font=gt, fill="#FFFF00")
   disp.image(image, 270)
 
 def send_midi_note(num):
-  fmt = "{0:x}".format(num)
-  os.system('amidi -p hw:1,0,0 -S "90 %s 7F"' % fmt)
-  os.system('amidi -p hw:1,0,0 -S "90 %s 00"' % fmt)
+  midiout.send_message([NOTE_ON, num, 112])
+  time.sleep(0.1)
+  midiout.send_message([NOTE_OFF, num, 0])
+
+def shutdown_now():
+  draw.rectangle((0, 0, disp.height, disp.width), outline=0, fill=0)
+  draw.text((0, 8), 'Shutdown...', font=sm, fill="#FFFF00")
+  disp.image(image, 270)
+  os.system('shutdown now')
 
 change_program(program_num)
 
@@ -105,17 +115,22 @@ if True:
             send_midi_note(notes[int(keys[event.code])])
           else:
             accumulator += keys[event.code]
-            show_progress(accumulator)
+            build_patch(accumulator)
         elif keys[event.code] in './*':
           program_num = presets[keys[event.code]]
           change_program(program_num)
         elif keys[event.code] == 'B' and accumulator != '':
           accumulator = accumulator[:-1]
-          show_progress(accumulator)
+          build_patch(accumulator)
         elif keys[event.code] == 'E' and accumulator != '':
-          program_num = int(accumulator) % 128
-          accumulator = ''
-          change_program(program_num)
+          if accumulator == '911':
+            del midiout
+            shutdown_now()
+            exit()
+          else:
+            program_num = int(accumulator) % 128
+            accumulator = ''
+            change_program(program_num)
         elif keys[event.code] == '-':
           program_num = 127 if program_num <= 0 else program_num - 1
           change_program(program_num)
