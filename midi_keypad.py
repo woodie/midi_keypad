@@ -12,6 +12,12 @@ from PIL import Image, ImageDraw, ImageFont
 from rtmidi.midiutil import open_midioutput
 from rtmidi.midiconstants import NOTE_OFF, NOTE_ON, PROGRAM_CHANGE
 
+ROTATION = 270
+TYPEFACE = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
+FONTS = [ ImageFont.truetype(TYPEFACE, 30),
+          ImageFont.truetype(TYPEFACE, 44),
+          ImageFont.truetype(TYPEFACE, 66) ]
+
 midiout, port_name = open_midioutput(1)
 
 text_file = open('/usr/share/midi/programs.txt', 'r')
@@ -28,9 +34,6 @@ disp = st7789.ST7789( board.SPI(),
 
 image = Image.new('RGB', (disp.height, disp.width))
 draw = ImageDraw.Draw(image)
-gt = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', 66)
-lg = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', 44)
-sm = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', 30)
 backlight = digitalio.DigitalInOut(board.D22)
 backlight.switch_to_output()
 backlight.value = True
@@ -69,18 +72,18 @@ def line_break(label):
 def change_program(num):
   draw.rectangle((0, 0, disp.height, disp.width), outline=0, fill=0)
   lines = line_break(programs[num])
-  draw.text((0, 8), 'Program:', font=sm, fill="#FFFFFF")
-  draw.text((160, -2), str(num), font=lg, fill="#FFFFFF")
-  draw.text((0, 50), lines[0], font=sm, fill="#00FF00")
-  draw.text((0, 90), lines[1], font=sm, fill="#00FF00")
-  disp.image(image, 270)
+  draw.text((0, 8), 'Program:', font=FONTS[0], fill="#FFFFFF")
+  draw.text((160, -2), str(num), font=FONTS[1], fill="#FFFFFF")
+  draw.text((0, 50), lines[0], font=FONTS[0], fill="#00FF00")
+  draw.text((0, 90), lines[1], font=FONTS[0], fill="#00FF00")
+  disp.image(image, ROTATION)
   midiout.send_message([PROGRAM_CHANGE, num])
 
 def build_patch(num):
   draw.rectangle((0, 0, disp.height, disp.width), outline=0, fill=0)
-  draw.text((0, 8), 'Program:', font=sm, fill="#FFFFFF")
-  draw.text((0, 50), str(num), font=gt, fill="#FFFF00")
-  disp.image(image, 270)
+  draw.text((0, 8), 'Program:', font=FONTS[0], fill="#FFFFFF")
+  draw.text((0, 50), str(num), font=FONTS[2], fill="#FFFF00")
+  disp.image(image, ROTATION)
 
 def send_midi_note(num):
   midiout.send_message([NOTE_ON, num, 112])
@@ -89,8 +92,8 @@ def send_midi_note(num):
 
 def shutdown_now():
   draw.rectangle((0, 0, disp.height, disp.width), outline=0, fill=0)
-  draw.text((0, 8), 'Shutdown...', font=sm, fill="#FFFF00")
-  disp.image(image, 270)
+  draw.text((0, 8), 'Shutdown...', font=FONTS[0], fill="#FFFF00")
+  disp.image(image, ROTATION)
   os.system('shutdown now')
 
 change_program(program_num)
